@@ -107,7 +107,7 @@ forbiddenPayment: []
   * WEBHOOK URL: `https://easy-cards.ru:8081/api/v1/tilda`
   * API method: `HEADER`
   * API name: `Authorization`
-  * API key: `Basic секретный-ключ` _ (секретный ключ выдается при подключении) _
+  * API key: `Basic секретный-ключ` _(секретный ключ выдается при подключении)_
   * Дополнительные настройки: выставляем **все** галочки
 
 ![Создаем новый вебхук](https://github.com/faelgar/maceloyalty-tilda/blob/c16a291266984981be0d213d2a5ccc38cdc915e0/screenshots/ml_06.png)
