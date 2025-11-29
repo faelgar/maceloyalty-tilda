@@ -10,13 +10,13 @@
 
   const MaceLoyaltySettings = {
     // ОБЯЗАТЕЛЬНО: id компании в Mace Loyalty
-    clientId: '9b97860b-aaa8-4e11-ad9b-7f740b412f68',
+    clientId: '',
 
     // ОБЯЗАТЕЛЬНО: секрет для доступа к API
-    secret: 'p4am4v88rd',
+    secret: '',
 
     // ОБЯЗАТЕЛЬНО: URL оформления карты (куда отправляем клиента, если карты нет)
-    cardIssueURL: 'https://easy-cards.ru:8081/api/v1/cards/f2320b27-1827-4461-9ddc-b2d00b61956b',
+    cardIssueURL: '',
 
     // Опционально: идентификатор оплаты наличными "cash" при котором карта не отображается, можно дополнить другими видами оплаты или оставить переменную пустой
     forbiddenPayment: ['cash'],
