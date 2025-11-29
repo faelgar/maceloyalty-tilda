@@ -39,16 +39,16 @@ const API_HOST = 'https://easy-cards.ru:8081/tilda/api/v1';
 ```
 
 **Поля настроек**
-*`clientId` *(обязательно)*
+* `clientId` *(обязательно)*
 Идентификатор компании в MaceLoyalty. Выдаётся при подключении.
 
-*`secret` *(обязательно)*
+* `secret` *(обязательно)*
 Секретный ключ для авторизации в API. Выдаётся при подключении.
 
-*`cardIssueURL` *(обязательно)*
+* `cardIssueURL` *(обязательно)*
 URL оформления карты лояльности. Открывается в новой вкладке, если по номеру телефона карта не найдена и пользователь нажимает кнопку «Оформить карту».
 
-*`forbiddenPayment` *(опционально)*
+* `forbiddenPayment` *(опционально)*
 Массив системных кодов способов оплаты (значения атрибута value у input[name="paymentsystem"]), при которых блок лояльности скрывается, а карта не подгружается.
 
 Примеры:
@@ -64,9 +64,9 @@ forbiddenPayment: ['cash', 'banktransfer']
 forbiddenPayment: []
 ```
 
-*`designVariant` *(опционально)*
+* `designVariant` *(опционально)*
 Управляет цветовой схемой и декором фона блока:
 
-  -DesignVariant.BLUE — синяя тема (по умолчанию);
-  -DesignVariant.GREY — светло-серая тема;
-  -DesignVariant.WHITE — белая тема.
+  - DesignVariant.BLUE — синяя тема (по умолчанию);
+  - DesignVariant.GREY — светло-серая тема;
+  - DesignVariant.WHITE — белая тема.
