@@ -9,3 +9,64 @@
 
 ## Настройка кода
 Основные настройки задаются в объекте `MaceLoyaltySettings` в начале скрипта:
+```
+const DesignVariant = {
+  BLUE: 'blue',
+  GREY: 'grey',
+  WHITE: 'white',
+};
+
+const MaceLoyaltySettings = {
+  // ОБЯЗАТЕЛЬНО: id компании в Mace Loyalty
+  clientId: '',
+
+  // ОБЯЗАТЕЛЬНО: секрет для доступа к API
+  secret: '',
+
+  // ОБЯЗАТЕЛЬНО: URL оформления карты (куда отправляем клиента, если карты нет)
+  cardIssueURL: '',
+
+  // ОПЦИОНАЛЬНО: способы оплаты, при которых блок лояльности не отображается
+  // Значения берутся из атрибутов value инпутов name="paymentsystem"
+  // Пример: <input type="radio" name="paymentsystem" value="cash" ...>
+  forbiddenPayment: ['cash'],
+
+  // ОПЦИОНАЛЬНО: цветовая схема блока (BLUE | GREY | WHITE)
+  designVariant: DesignVariant.BLUE,
+};
+
+const API_HOST = 'https://easy-cards.ru:8081/tilda/api/v1';
+```
+
+**Поля настроек**
+*`clientId` *(обязательно)*
+Идентификатор компании в MaceLoyalty. Выдаётся при подключении.
+
+*`secret` *(обязательно)*
+Секретный ключ для авторизации в API. Выдаётся при подключении.
+
+*`cardIssueURL` *(обязательно)*
+URL оформления карты лояльности. Открывается в новой вкладке, если по номеру телефона карта не найдена и пользователь нажимает кнопку «Оформить карту».
+
+*`forbiddenPayment` *(опционально)*
+Массив системных кодов способов оплаты (значения атрибута value у input[name="paymentsystem"]), при которых блок лояльности скрывается, а карта не подгружается.
+
+Примеры:
+
+```
+// Скрывать блок при оплате наличными
+forbiddenPayment: ['cash']
+
+// Скрывать блок при нале и банковском переводе
+forbiddenPayment: ['cash', 'banktransfer']
+
+// Не скрывать никогда (всегда показывать)
+forbiddenPayment: []
+```
+
+*`designVariant` *(опционально)*
+Управляет цветовой схемой и декором фона блока:
+
+  -DesignVariant.BLUE — синяя тема (по умолчанию);
+  -DesignVariant.GREY — светло-серая тема;
+  -DesignVariant.WHITE — белая тема.
