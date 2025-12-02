@@ -10,13 +10,13 @@
 
   const MaceLoyaltySettings = {
     // ОБЯЗАТЕЛЬНО: id компании в Mace Loyalty
-    clientId: '',
+    clientId: '9b97860b-aaa8-4e11-ad9b-7f740b412f68',
 
     // ОБЯЗАТЕЛЬНО: секрет для доступа к API
-    secret: '',
+    secret: 'p4am4v88rd',
 
     // ОБЯЗАТЕЛЬНО: URL оформления карты (куда отправляем клиента, если карты нет)
-    cardIssueURL: '',
+    cardIssueURL: 'https://easy-cards.ru:8081/api/v1/cards/f2320b27-1827-4461-9ddc-b2d00b61956b',
 
     // Опционально: идентификатор оплаты наличными "cash" при котором карта не отображается, можно дополнить другими видами оплаты или оставить переменную пустой
     forbiddenPayment: ['cash'],
@@ -272,6 +272,12 @@
   }
 
   function updateHiddenFields() {
+
+    if (!MaceLoyaltyState.card) {
+      clearHiddenFields();
+      return;
+    }
+
     const fields = HiddenFields.cardInstanceId ? HiddenFields : ensureHiddenFields();
     if (!fields) return;
 
@@ -280,10 +286,22 @@
         ? MaceLoyaltyState.card.cardInstanceId
         : '';
 
-    const amount =
-      window.tcart && typeof window.tcart.prodamount === 'number'
-        ? window.tcart.prodamount
-        : '';
+    let amount = '';
+
+    if (window.tcart) {
+      // если применён наш промокод (useCashback или addPurchase),
+      // то берём итоговую сумму с учётом скидки/списания
+      if (
+        (MaceLoyaltyState.mode === 'useCashback' ||
+          MaceLoyaltyState.mode === 'addPurchase') &&
+        typeof window.tcart.prodamount_withdiscount === 'number'
+      ) {
+        amount = window.tcart.prodamount_withdiscount;
+      } else if (typeof window.tcart.prodamount === 'number') {
+        // во всех остальных случаях — базовая сумма товаров
+        amount = window.tcart.prodamount;
+      }
+    }
 
     const useBonusAmount =
       MaceLoyaltyState.mode === 'useCashback' &&
@@ -302,6 +320,7 @@
     const fields = HiddenFields.cardInstanceId ? HiddenFields : ensureHiddenFields();
     if (!fields) return;
 
+    // очищаем значения hidden-полей
     fields.cardInstanceId.value = '';
     fields.amount.value = '';
     fields.type.value = '';
@@ -309,6 +328,14 @@
     if (fields.useBonusAmount) {
       fields.useBonusAmount.value = '';
     }
+
+    // сбрасываем состояние карты лояльности
+    MaceLoyaltyState.card = null;
+    MaceLoyaltyState.phone = null;
+    MaceLoyaltyState.mode = null;
+    MaceLoyaltyState.bonusesToDeposit = 0;
+    MaceLoyaltyState.bonusesToWithdrawal = 0;
+    MaceLoyaltyState.totalCashback = 0;
     MaceLoyaltyState.useBonusAmount = 0;
   }
 
@@ -1027,12 +1054,15 @@
       });
     });
 
-    //следим за изменением общего итога
+    // следим за изменением общего итога
     var reDrawTotalFunction = window.tcart__reDrawTotal;
     window.tcart__reDrawTotal = function (d) {
       reDrawTotalFunction(d);
-      setTimeout(updateCartTotalsLabels, 10);
-    }
+      setTimeout(function () {
+        updateCartTotalsLabels();
+        updateHiddenFields();
+      }, 10);
+    };
   }
 
   // =========================
