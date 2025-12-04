@@ -244,6 +244,84 @@
     });
   }
 
+  // Пересчитать состояние лояльности после изменения корзины
+  function recalcAfterCartChange() {
+    if (!MaceLoyaltyState.card || !window.tcart) return;
+
+    const card = MaceLoyaltyState.card;
+    const type = (card.balance.type || '').toLowerCase();
+
+    // ---- КАРТА CASHBACK ----
+    if (type === 'cashback') {
+      const { totalCashback, bonusesToDeposit, bonusesToWithdrawal } =
+        calculateCashbackMetrics(card);
+
+      const spendFloor = Math.floor(bonusesToWithdrawal);
+      const canUse = spendFloor > 0;
+
+      // Обновляем state
+      MaceLoyaltyState.totalCashback = totalCashback;
+      MaceLoyaltyState.bonusesToDeposit = bonusesToDeposit;
+      MaceLoyaltyState.bonusesToWithdrawal = bonusesToWithdrawal;
+
+      // Обновляем подписи на кнопках
+      const container = document.getElementById('maceloyalty');
+      if (container) {
+        const btnAdd = container.querySelector('[data-ml-mode="add"]');
+        const btnUse = container.querySelector('[data-ml-mode="use"]');
+
+        if (btnAdd) {
+          btnAdd.textContent = 'Накопить ' + formatBonuses(bonusesToDeposit);
+        }
+
+        if (btnUse) {
+          btnUse.textContent = 'Списать ' + formatBonuses(spendFloor);
+
+          if (!canUse) {
+            btnUse.classList.add('maceloyalty__btn--disabled');
+            btnUse.setAttribute('aria-disabled', 'true');
+            btnUse.setAttribute('tabindex', '-1');
+          } else {
+            btnUse.classList.remove('maceloyalty__btn--disabled');
+            btnUse.removeAttribute('aria-disabled');
+            btnUse.removeAttribute('tabindex');
+          }
+        }
+      }
+
+      // Если пользователь выбрал режим "Списать", нужно пересчитать скидку
+      if (MaceLoyaltyState.mode === 'useCashback') {
+        if (!canUse) {
+          // Больше нечего списывать — убираем промокод и обнуляем списание
+          removePromo();
+          MaceLoyaltyState.useBonusAmount = 0;
+          updateHiddenFields();
+        } else {
+          // Пересчитываем сумму списания
+          removePromo(); // убираем старый промокод/скидку
+          MaceLoyaltyState.useBonusAmount = spendFloor;
+          updateHiddenFields();
+          applyUseCashbak(card.balance.type, spendFloor); // применяем заново
+        }
+      }
+    }
+
+    // ---- КАРТА С ПРОЦЕНТНОЙ СКИДКОЙ ----
+    else if (type === 'discount') {
+      if (MaceLoyaltyState.mode === 'addPurchase') {
+        const modifier =
+          card.level && typeof card.level.modifier === 'number'
+            ? card.level.modifier
+            : 0;
+        const percent = Math.round(modifier);
+
+        // Просто пересчитать скидку по проценту
+        removePromo();
+        applyUseCashbak(card.balance.type, percent);
+      }
+    }
+  }
+
   function ensureHiddenFields() {
     const form = document.querySelector('.t706 form');
     if (!form) {
@@ -393,7 +471,6 @@
     if (typeof window.tcart__saveLocalObj === 'function') window.tcart__saveLocalObj();
     if (typeof window.tcart__reDrawProducts === 'function') window.tcart__reDrawProducts();
     if (typeof window.tcart__updateTotalProductsinCartObj === 'function') window.tcart__updateTotalProductsinCartObj();
-    if (typeof window.tcart__reDrawCartIcon === 'function') window.tcart__reDrawCartIcon();
     if (typeof window.tcart__reDrawTotal === 'function') window.tcart__reDrawTotal();
   }
 
@@ -1084,6 +1161,14 @@
       setTimeout(function () {
         updateCartTotalsLabels();
         updateHiddenFields();
+      }, 10);
+    };
+
+    var updatetCart__reDrawCartIcon = window.tcart__reDrawCartIcon;
+    window.tcart__reDrawCartIcon = function () {
+      updatetCart__reDrawCartIcon();
+      setTimeout(function () {
+        recalcAfterCartChange();
       }, 10);
     };
   }
