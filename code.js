@@ -10,13 +10,13 @@
 
   const MaceLoyaltySettings = {
     // ОБЯЗАТЕЛЬНО: id компании в Mace Loyalty
-    clientId: '9b97860b-aaa8-4e11-ad9b-7f740b412f68',
+    clientId: '',
 
     // ОБЯЗАТЕЛЬНО: секрет для доступа к API
-    secret: 'p4am4v88rd',
+    secret: '',
 
     // ОБЯЗАТЕЛЬНО: URL оформления карты (куда отправляем клиента, если карты нет)
-    cardIssueURL: 'https://easy-cards.ru:8081/api/v1/cards/f2320b27-1827-4461-9ddc-b2d00b61956b',
+    cardIssueURL: '',
 
     // Опционально: идентификатор оплаты наличными "cash" при котором карта не отображается, можно дополнить другими видами оплаты или оставить переменную пустой
     forbiddenPayment: ['cash'],
@@ -29,6 +29,7 @@
 
   let detectedFontFamily = 'sans-serif';
   let promoField = null;
+  let hasPromoField = false; // есть ли блок с промокодом в корзине
 
   const HiddenFields = {
     cardInstanceId: null,
@@ -78,15 +79,14 @@
   function isMaceLoyaltyEnvReady() {
     const hasForm = !!document.querySelector('.t706 form');
     const hasDeliveryGroup = !!document.querySelector('.t-input-group_dl');
-    const hasPromoWrapper = !!document.querySelector('.t-inputpromocode__wrapper');
-    const hasPhoneInput = !!document.querySelector('input[name="Phone"]');
+    const hasPromoWrapper = !!document.querySelector('.t-inputpromocode__wrapper'); // просто фиксируем, но не требуем
+    const hasPhoneInput = !!document.querySelector('.t706 .t-input-group_ph');
     const hasTcart = typeof window.tcart === 'object' && window.tcart !== null;
     const hasRedrawTotal = typeof window.tcart__reDrawTotal === 'function';
 
     return (
       hasForm &&
       hasDeliveryGroup &&
-      hasPromoWrapper &&
       hasPhoneInput &&
       hasTcart &&
       hasRedrawTotal
@@ -340,10 +340,18 @@
   }
 
   // удаляем промокоды из корзины
+  // удаляем промокоды из корзины
   function removePromo() {
-    const cartID = document.querySelector('div[data-record-type="706"]')?.getAttribute('id').replace(/[^0-9]/g, '');
-    const promoID = document.querySelector('.t-input-group_pc')?.getAttribute('data-input-lid');
+    if (!window.tcart) return;
 
+    const cartID = document
+      .querySelector('div[data-record-type="706"]')
+      ?.getAttribute('id')
+      ?.replace(/[^0-9]/g, '');
+    const promoGroup = document.querySelector('.t-input-group_pc');
+    const promoID = promoGroup?.getAttribute('data-input-lid');
+
+    // очищаем данные скидок в tcart
     if (window.tcart.promocode) {
       delete window.tcart.promocode;
     }
@@ -362,19 +370,31 @@
       window.tcart.amount = window.tcart.prodamount;
     }
 
-    document.querySelector('.t-inputpromocode__wrapper').innerHTML = promoField;
+    // если промо-блок вообще есть на странице — восстанавливаем его
+    if (hasPromoField && promoField !== null) {
+      const promoWrapper = document.querySelector('.t-inputpromocode__wrapper');
+      if (promoWrapper) {
+        promoWrapper.innerHTML = promoField;
+      }
 
-    let promoBlock = document.querySelector('.t-input-group_pc');
-    if (promoBlock) {
-      promoBlock.style.display = 'block';
+      if (promoGroup) {
+        promoGroup.style.display = 'block';
+      }
+
+      if (
+        typeof window.t_input_promocode_init === 'function' &&
+        cartID &&
+        promoID
+      ) {
+        window.t_input_promocode_init(cartID, promoID);
+      }
     }
 
-    window.tcart__saveLocalObj();
-    window.tcart__reDrawProducts();
-    window.tcart__updateTotalProductsinCartObj();
-    window.tcart__reDrawCartIcon();
-    window.tcart__reDrawTotal();
-    window.t_input_promocode_init(cartID, promoID);
+    if (typeof window.tcart__saveLocalObj === 'function') window.tcart__saveLocalObj();
+    if (typeof window.tcart__reDrawProducts === 'function') window.tcart__reDrawProducts();
+    if (typeof window.tcart__updateTotalProductsinCartObj === 'function') window.tcart__updateTotalProductsinCartObj();
+    if (typeof window.tcart__reDrawCartIcon === 'function') window.tcart__reDrawCartIcon();
+    if (typeof window.tcart__reDrawTotal === 'function') window.tcart__reDrawTotal();
   }
 
   // применение промокода (списывание бонусов)
@@ -425,9 +445,11 @@
 
     window.t_input_promocode__addPromocode(bonuspromo);
 
-    let promoBlock = document.querySelector('.t-input-group_pc');
-    if (promoBlock) {
-      promoBlock.style.display = 'none';
+    if (hasPromoField) {
+      let promoBlock = document.querySelector('.t-input-group_pc');
+      if (promoBlock) {
+        promoBlock.style.display = 'none';
+      }
     }
 
     logInfo('Списаны бонусы: ' + amountToSpend);
@@ -661,31 +683,23 @@
   }
 
   function findPhoneInput() {
-    // Ищем скрытый input с name="cartPhone" — это «правильная» дата
-    const hiddenPhone = document.querySelector('input[name="Phone"]');
-    if (!hiddenPhone) {
-      logError(
-        'Не найдено поле "Phone" в корзине. Интеграция не запущена.'
-      );
-      return null;
-    }
-
-    // Находим группу и видимый input с маской телефона
-    const group = hiddenPhone.closest('.t-input-group');
+    // Ищем группу телефона по стандартному классу Tilda для телефона в корзине
+    const group = document.querySelector('.t706 .t-input-group_ph');
     if (!group) {
       logError(
-        'Не найден блок .t-input-group для "Phone". Интеграция не запущена.'
+        'Не найден блок .t-input-group_ph в корзине. Интеграция не запущена.'
       );
       return null;
     }
 
+    // Находим видимый input с маской телефона
     const visibleInput =
       group.querySelector('input.t-input-phonemask') ||
       group.querySelector('input[type="tel"]');
 
     if (!visibleInput) {
       logError(
-        'Не найден блок .t-input-phonemask. Интеграция не запущена.'
+        'Не найдено поле телефона внутри .t-input-group_ph. Интеграция не запущена.'
       );
       return null;
     }
@@ -955,7 +969,16 @@
     }
 
     detectedFontFamily = detectTildaFont();
-    promoField = document.querySelector('.t-inputpromocode__wrapper').innerHTML;
+
+    const promoWrapper = document.querySelector('.t-inputpromocode__wrapper');
+    if (promoWrapper) {
+      promoField = promoWrapper.innerHTML;
+      hasPromoField = true;
+    } else {
+      promoField = null;
+      hasPromoField = false;
+    }
+
     injectBaseStylesOnce();
     ensureHiddenFields();
     clearHiddenFields();
