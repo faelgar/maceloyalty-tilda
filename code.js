@@ -367,11 +367,10 @@
     let amount = '';
 
     if (window.tcart) {
-      // если применён наш промокод (useCashback или addPurchase),
+      // если применена скидочная карта (addPurchase),
       // то берём итоговую сумму с учётом скидки/списания
       if (
-        (MaceLoyaltyState.mode === 'useCashback' ||
-          MaceLoyaltyState.mode === 'addPurchase') &&
+        (MaceLoyaltyState.mode === 'addPurchase') &&
         typeof window.tcart.prodamount_withdiscount === 'number'
       ) {
         amount = window.tcart.prodamount_withdiscount;
