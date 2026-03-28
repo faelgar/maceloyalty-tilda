@@ -23,6 +23,11 @@
 
     // Опционально: BLUE (по умолчанию), GREY, WHITE
     designVariant: DesignVariant.BLUE,
+
+    // Опционально: есть ли в корзине блок доставки (.t-input-group_dl)
+    // true  -> блок лояльности вставляется перед доставкой
+    // false -> блок лояльности вставляется перед итоговым блоком корзины
+    hasDeliveryBlock: true,
   };
 
   const API_HOST = 'https://easy-cards.ru:8081/tilda/api/v1';
@@ -78,18 +83,23 @@
   // =========================
   function isMaceLoyaltyEnvReady() {
     const hasForm = !!document.querySelector('.t706 form');
-    const hasDeliveryGroup = !!document.querySelector('.t-input-group_dl');
-    const hasPromoWrapper = !!document.querySelector('.t-inputpromocode__wrapper'); // просто фиксируем, но не требуем
     const hasPhoneInput = !!document.querySelector('.t706 .t-input-group_ph');
     const hasTcart = typeof window.tcart === 'object' && window.tcart !== null;
     const hasRedrawTotal = typeof window.tcart__reDrawTotal === 'function';
 
+    const hasDeliveryGroup = !!document.querySelector('.t-input-group_dl');
+    const hasTotalWrap = !!document.querySelector('.t706__cartwin-totalamount-wrap');
+
+    const hasInsertTarget = MaceLoyaltySettings.hasDeliveryBlock
+      ? hasDeliveryGroup
+      : hasTotalWrap;
+
     return (
       hasForm &&
-      hasDeliveryGroup &&
       hasPhoneInput &&
       hasTcart &&
-      hasRedrawTotal
+      hasRedrawTotal &&
+      hasInsertTarget
     );
   }
 
@@ -787,20 +797,40 @@
     let container = document.getElementById('maceloyalty');
     if (container) return container;
 
-    const deliveryGroup = document.querySelector('.t-input-group_dl');
-    if (!deliveryGroup || !deliveryGroup.parentNode) {
-      logError(
-        'Блок доставки ".t-input-group_dl" не найден. Невозможно запустить интеграцию.'
-      );
-      return null;
+    let insertBeforeNode = null;
+    let parentNode = null;
+
+    if (MaceLoyaltySettings.hasDeliveryBlock) {
+      const deliveryGroup = document.querySelector('.t-input-group_dl');
+
+      if (!deliveryGroup || !deliveryGroup.parentNode) {
+        logError(
+          'В настройках hasDeliveryBlock=true, но блок доставки ".t-input-group_dl" не найден. Невозможно вставить блок лояльности.'
+        );
+        return null;
+      }
+
+      insertBeforeNode = deliveryGroup;
+      parentNode = deliveryGroup.parentNode;
+    } else {
+      const totalWrap = document.querySelector('.t706__cartwin-totalamount-wrap');
+
+      if (!totalWrap || !totalWrap.parentNode) {
+        logError(
+          'В настройках hasDeliveryBlock=false, но итоговый блок ".t706__cartwin-totalamount-wrap" не найден. Невозможно вставить блок лояльности.'
+        );
+        return null;
+      }
+
+      insertBeforeNode = totalWrap;
+      parentNode = totalWrap.parentNode;
     }
 
     container = document.createElement('div');
     container.id = 'maceloyalty';
     container.className = 'maceloyalty ' + getDesignClass();
 
-    // вставляем ПЕРЕД блоком доставки
-    deliveryGroup.parentNode.insertBefore(container, deliveryGroup);
+    parentNode.insertBefore(container, insertBeforeNode);
 
     return container;
   }
