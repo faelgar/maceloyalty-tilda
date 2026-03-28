@@ -33,6 +33,11 @@ const MaceLoyaltySettings = {
 
   // ОПЦИОНАЛЬНО: цветовая схема блока (BLUE | GREY | WHITE)
   designVariant: DesignVariant.BLUE,
+
+  // Опционально: есть ли в корзине блок доставки (.t-input-group_dl)
+  // true  -> блок лояльности вставляется перед доставкой
+  // false -> блок лояльности вставляется перед итоговым блоком корзины
+  hasDeliveryBlock: true,
 };
 
 const API_HOST = 'https://easy-cards.ru:8081/tilda/api/v1';
