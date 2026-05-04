@@ -747,7 +747,7 @@
 
         .maceloyalty__header {
           font-size: 18px;
-          magin-bottom: 12px;
+          margin-bottom: 12px;
         }
 
         .maceloyalty__subheader {
@@ -1066,6 +1066,67 @@
     }
   }
 
+  function normalizePhoneInput(rawValue) {
+    return String(rawValue || '').replace(/\D/g, '');
+  }
+
+  function validateRuPhoneDigits(digits) {
+    if (!digits) return null;
+
+    // Локальный мобильный РФ: 9165739282
+    // Для мобильных номеров первая цифра после кода страны обычно 9.
+    if (digits.length === 10 && digits.charAt(0) === '9') {
+      return digits;
+    }
+
+    // 79165739282 / 89165739282
+    if (
+      digits.length === 11 &&
+      (digits.charAt(0) === '7' || digits.charAt(0) === '8') &&
+      digits.charAt(1) === '9'
+    ) {
+      return digits.slice(1);
+    }
+
+    return null;
+  }
+
+  function getPhoneForApiFromInput(input) {
+    const rawValue = input && input.value ? input.value : '';
+    const digits = normalizePhoneInput(rawValue);
+
+    return validateRuPhoneDigits(digits);
+  }
+
+  function watchPhoneValueChanges(input, callback) {
+    if (!input || input.__maceloyaltyValueWatcher) return;
+
+    const descriptor = Object.getOwnPropertyDescriptor(
+      HTMLInputElement.prototype,
+      'value'
+    );
+
+    if (!descriptor || !descriptor.get || !descriptor.set) return;
+
+    Object.defineProperty(input, 'value', {
+      configurable: true,
+      get() {
+        return descriptor.get.call(this);
+      },
+      set(value) {
+        const oldValue = descriptor.get.call(this);
+
+        descriptor.set.call(this, value);
+
+        if (value !== oldValue) {
+          callback({ target: this });
+        }
+      },
+    });
+
+    input.__maceloyaltyValueWatcher = true;
+  }
+
   // =========================
   // ОСНОВНАЯ ЛОГИКА: отслеживаем телефон
   // =========================
@@ -1097,52 +1158,67 @@
     logInfo('Интеграция запущена. Ожидание ввода номера телефона');
 
     let lastValidPhone = null;
+    let phoneInputTimer = null;
+    let lastProcessedRaw = null;
 
     const onPhoneInput = function (event) {
-      const rawValue = event.target.value || '';
-      const digits = rawValue.replace(/\D/g, ''); // только цифры
+      clearTimeout(phoneInputTimer);
 
-      if (digits.length === 10) {
-        // полный номер без кода страны, например 916 555 55 55
-        const phoneForApi = digits;
+      phoneInputTimer = setTimeout(function () {
+        const rawValue = event.target.value || '';
 
-        // Если выбран несовместимый способ оплаты – вообще не грузим карту
-        if (isPaymentForbidden()) {
-          logInfo('Выбран несовместимый способ оплаты, карту лояльности не загружаем.');
-          // не запоминаем lastValidPhone, чтобы после смены способа оплаты
-          // можно было подтянуть карту для уже введённого номера
-          clearHiddenFields();
+        // если вообще ничего не поменялось — выходим
+        if (rawValue === lastProcessedRaw) return;
+
+        lastProcessedRaw = rawValue;
+
+        const phoneForApi = getPhoneForApiFromInput(event.target);
+
+        if (phoneForApi) {
+          if (isPaymentForbidden()) {
+            logInfo('Выбран несовместимый способ оплаты, карту лояльности не загружаем.');
+            clearHiddenFields();
+            removePromo();
+            const container = document.getElementById('maceloyalty');
+            if (container) container.remove();
+            return;
+          }
+
+          if (phoneForApi === lastValidPhone) {
+            return;
+          }
+
+          lastValidPhone = phoneForApi;
+
+          showLoader();
+          fetchCardByPhone(phoneForApi);
+        } else {
+          if (lastValidPhone !== null) {
+            logInfo('Номер телефона стал неполным или некорректным. Сбрасываем статус.');
+          }
+
           removePromo();
+          clearHiddenFields();
+          lastValidPhone = null;
+
           const container = document.getElementById('maceloyalty');
           if (container) container.remove();
-          return;
         }
-
-        // Проверяем, не тот же номер уже обрабатывали при совместимом способе оплаты
-        if (phoneForApi === lastValidPhone) {
-          return;
-        }
-        lastValidPhone = phoneForApi;
-
-        // 1) показываем loader
-        showLoader();
-
-        // 2) вызываем API уже с номером БЕЗ кода страны
-        fetchCardByPhone(phoneForApi);
-      } else {
-        // номер введен не полностью -> сбрасываем state и убираем блок
-        if (lastValidPhone !== null) {
-          logInfo('Номер телефона стал неполным. Сбрасываем статус.');
-        }
-        removePromo();
-        clearHiddenFields();
-        lastValidPhone = null;
-        const container = document.getElementById('maceloyalty');
-        if (container) container.remove();
-      }
+      }, 300);
     };
 
     phoneInput.addEventListener('input', onPhoneInput);
+    phoneInput.addEventListener('change', onPhoneInput);
+    phoneInput.addEventListener('blur', onPhoneInput);
+
+    // Ловим программное заполнение input.value,
+    // например автозаполнение после открытия корзины
+    watchPhoneValueChanges(phoneInput, onPhoneInput);
+
+    // Проверяем телефон сразу при инициализации
+    setTimeout(function () {
+      onPhoneInput({ target: phoneInput });
+    }, 300);
 
     // следим за сменой способа оплаты
     const paymentInputs = document.querySelectorAll('input[name="paymentsystem"]');
@@ -1163,12 +1239,9 @@
 
         // Способ оплаты совместим:
         // если телефон уже введён полностью — подгружаем карту автоматически
-        const rawValue = phoneInput.value || '';
-        const digits = rawValue.replace(/\D/g, '');
+        const phoneForApi = getPhoneForApiFromInput(phoneInput);
 
-        if (digits.length === 10) {
-          const phoneForApi = digits;
-
+        if (phoneForApi) {
           logInfo('Совместимый способ оплаты и уже введён телефон, загружаем карту лояльности.');
           showLoader();
           lastValidPhone = phoneForApi;
