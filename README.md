@@ -119,3 +119,5 @@ forbiddenPayment: []
 ![Создаем новый вебхук](https://github.com/faelgar/maceloyalty-tilda/blob/c16a291266984981be0d213d2a5ccc38cdc915e0/screenshots/ml_06.png)
 
 Переходим в блок корзины и нажимаем на **Контент**. В открывшемся окне, в списке **Подключенные севисы** нужно поставить галочку напротив созданного вебхука и сохранить настройки. После этого необходимо будет опубликовать сайт.
+
+![В блоке корзины нажимаем на "Контент"](https://github.com/faelgar/maceloyalty-tilda/blob/main/screenshots/ml_07.png)
