@@ -30,7 +30,7 @@
     hasDeliveryBlock: true,
   };
 
-  const API_HOST = 'https://easy-cards.ru:8081/tilda/api/v1';
+  const API_HOST = 'https://maceloyalty.ru/tilda/api/v1';
 
   let detectedFontFamily = 'sans-serif';
   let promoField = null;
